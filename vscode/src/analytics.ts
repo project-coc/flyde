@@ -18,16 +18,37 @@ class FlydeAnalytics {
   private userId: string | null = null;
   private isEnabled = false;
   private level: TelemetryLevel = 'off';
+  private isTestEnvironment = false;
 
   constructor() {
-    this.initializeUserId();
-    this.updateConfiguration();
-    
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('flyde.telemetry')) {
-        this.updateConfiguration();
-      }
-    });
+    // Detect test environment
+    this.isTestEnvironment = process.env.NODE_ENV === 'test' || 
+                            process.env.VSCODE_TEST === 'true' ||
+                            process.argv.some(arg => arg.includes('runTest'));
+
+    if (this.isTestEnvironment) {
+      // In test environment, disable analytics completely
+      this.userId = 'test-user';
+      this.isEnabled = false;
+      this.level = 'off';
+      return;
+    }
+
+    try {
+      this.initializeUserId();
+      this.updateConfiguration();
+      
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('flyde.telemetry')) {
+          this.updateConfiguration();
+        }
+      });
+    } catch (error) {
+      // Fallback for any initialization errors
+      this.userId = this.generateAnonymousId();
+      this.isEnabled = false;
+      this.level = 'off';
+    }
   }
 
   private initializeUserId(): void {
@@ -74,6 +95,9 @@ class FlydeAnalytics {
   }
 
   public activate(): void {
+    if (this.isTestEnvironment) {
+      return;
+    }
     this.updateConfiguration();
     if (this.isEnabled) {
       this.reportEvent('activate', {
@@ -90,7 +114,7 @@ class FlydeAnalytics {
   }
 
   public reportEvent(eventName: string, properties?: Record<string, any>): void {
-    if (!this.isEnabled || !this.posthog || !this.userId) {
+    if (this.isTestEnvironment || !this.isEnabled || !this.posthog || !this.userId) {
       return;
     }
 
@@ -112,7 +136,7 @@ class FlydeAnalytics {
   }
 
   public reportException(error: Error, properties?: Record<string, any>): void {
-    if (!this.isEnabled || !this.posthog || !this.userId) {
+    if (this.isTestEnvironment || !this.isEnabled || !this.posthog || !this.userId) {
       return;
     }
 
