@@ -37,6 +37,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
   const fileRoot = firstWorkspace ? firstWorkspace.uri.fsPath : "";
 
+  // Initialize analytics with context
+  analytics.setContext(context);
+  
   // Show first-run privacy notice and initialize analytics
   showFirstRunPrivacyNotice().then(() => {
     activateReporter();

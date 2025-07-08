@@ -52,15 +52,20 @@ class FlydeAnalytics {
   }
 
   private initializeUserId(): void {
-    const context = vscode.extensions.getExtension('flyde.flyde-vscode')?.exports?.context;
-    if (context) {
-      this.userId = context.globalState.get('userId');
-      if (!this.userId) {
-        this.userId = this.generateAnonymousId();
-        context.globalState.update('userId', this.userId);
-      }
+    // Generate anonymous ID - context will be set during activation
+    this.userId = this.generateAnonymousId();
+  }
+
+  public setContext(context: vscode.ExtensionContext): void {
+    if (this.isTestEnvironment) {
+      return;
+    }
+    
+    const storedUserId = context.globalState.get<string>('userId');
+    if (storedUserId) {
+      this.userId = storedUserId;
     } else {
-      this.userId = this.generateAnonymousId();
+      context.globalState.update('userId', this.userId);
     }
   }
 
